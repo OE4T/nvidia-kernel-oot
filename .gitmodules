@@ -1,7 +1,7 @@
 [submodule "nvdisplay"]
 	path = nvdisplay
 	url = https://github.com/OE4T/nv-kernel-display-driver.git
-	branch = rel-36
+	branch = patches-rel-36
 [submodule "hwpm"]
 	path = hwpm
 	url = https://github.com/OE4T/linux-hwpm.git
@@ -17,7 +17,7 @@
 [submodule "nvidia-oot"]
 	path = nvidia-oot
 	url = https://github.com/OE4T/linux-nv-oot.git
-	branch = rel-36
+	branch = patches-rel-36
 [submodule "nvgpu"]
 	path = nvgpu
 	url = https://github.com/OE4T/linux-nvgpu.git
