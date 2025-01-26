@@ -13,7 +13,7 @@
 [submodule "hardware/nvidia/t23x/nv-public"]
 	path = hardware/nvidia/t23x/nv-public
 	url = https://github.com/OE4T/t23x-public-dts.git
-	branch = rel-36
+	branch = patches-rel-36
 [submodule "nvidia-oot"]
 	path = nvidia-oot
 	url = https://github.com/OE4T/linux-nv-oot.git
@@ -21,7 +21,7 @@
 [submodule "nvgpu"]
 	path = nvgpu
 	url = https://github.com/OE4T/linux-nvgpu.git
-	branch = rel-36
+	branch = patches-rel-36
 [submodule "nvethernetrm"]
 	path = nvethernetrm
 	url = https://github.com/OE4T/nvethernetrm.git
