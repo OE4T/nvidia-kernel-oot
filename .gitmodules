@@ -21,7 +21,7 @@
 [submodule "nvgpu"]
 	path = nvgpu
 	url = https://github.com/OE4T/linux-nvgpu.git
-	branch = rel-36
+	branch = patches-rel-36
 [submodule "nvethernetrm"]
 	path = nvethernetrm
 	url = https://github.com/OE4T/nvethernetrm.git
