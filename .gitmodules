@@ -1,32 +1,32 @@
 [submodule "nvdisplay"]
 	path = nvdisplay
 	url = https://github.com/OE4T/nv-kernel-display-driver.git
-	branch = patches-rel-36
+	branch = patches-r36.4.4
 [submodule "hwpm"]
 	path = hwpm
 	url = https://github.com/OE4T/linux-hwpm.git
-	branch = rel-36
+	branch = l4t/l4t-r36.4.4
 [submodule "hardware/nvidia/tegra/nv-public"]
 	path = hardware/nvidia/tegra/nv-public
 	url = https://github.com/OE4T/tegra-public-dts.git
-	branch = rel-36
+	branch = l4t/l4t-r36.4.4
 [submodule "hardware/nvidia/t23x/nv-public"]
 	path = hardware/nvidia/t23x/nv-public
 	url = https://github.com/OE4T/t23x-public-dts.git
-	branch = patches-rel-36
+	branch = l4t/l4t-r36.4.4
 [submodule "nvidia-oot"]
 	path = nvidia-oot
 	url = https://github.com/OE4T/linux-nv-oot.git
-	branch = patches-rel-36
+	branch = patches-r36.4.4
 [submodule "nvgpu"]
 	path = nvgpu
 	url = https://github.com/OE4T/linux-nvgpu.git
-	branch = patches-rel-36
+	branch = l4t/l4t-r36.4.4
 [submodule "nvethernetrm"]
 	path = nvethernetrm
 	url = https://github.com/OE4T/nvethernetrm.git
-	branch = rel-36
+	branch = l4t/l4t-r36.4.4
 [submodule "kernel-devicetree"]
 	path = kernel-devicetree
 	url = https://github.com/OE4T/kernel-devicetree.git
-	branch = rel-36
+	branch = l4t/l4t-r36.4.4
