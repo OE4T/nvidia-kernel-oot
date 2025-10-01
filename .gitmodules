@@ -1,32 +1,32 @@
 [submodule "hwpm"]
 	path = hwpm
 	url = https://github.com/OE4T/linux-hwpm.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "hardware/nvidia/tegra/nv-public"]
 	path = hardware/nvidia/tegra/nv-public
 	url = https://github.com/OE4T/tegra-public-dts.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "hardware/nvidia/t23x/nv-public"]
 	path = hardware/nvidia/t23x/nv-public
 	url = https://github.com/OE4T/t23x-public-dts.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "nvidia-oot"]
 	path = nvidia-oot
 	url = https://github.com/OE4T/linux-nv-oot.git
-	branch = patches-l4t-r38.2.0
+	branch = patches-l4t-r38.2.1
 [submodule "nvethernetrm"]
 	path = nvethernetrm
 	url = https://github.com/OE4T/nvethernetrm.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "kernel-devicetree"]
 	path = kernel-devicetree
 	url = https://github.com/OE4T/kernel-devicetree.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "hardware/nvidia/t264/nv-public"]
 	path = hardware/nvidia/t264/nv-public
 	url = https://github.com/OE4T/t264-public-dts.git
-	branch = l4t/l4t-r38.2
+	branch = l4t/l4t-r38.2.1
 [submodule "unifiedgpudisp"]
 	path = unifiedgpudisp
 	url = https://github.com/OE4T/nv-unified-gpu-display-driver.git
-	branch = patches-l4t-r38.2.0
+	branch = patches-l4t-r38.2.1
