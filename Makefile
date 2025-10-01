@@ -1,11 +1,12 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 
 KERNEL_HEADERS ?= /lib/modules/$(shell uname -r)/build
-KERNEL_OUTPUT ?= ${KERNEL_HEADERS}
+KERNEL_OUTPUT ?= $(KERNEL_HEADERS)
 
 MAKEFILE_DIR := $(abspath $(shell dirname $(lastword $(MAKEFILE_LIST))))
 NVIDIA_CONFTEST ?= $(MAKEFILE_DIR)/out/nvidia-conftest
+NVIDIA_DTS_BUILD_SCRIPTS ?= $(realpath $(MAKEFILE_DIR)/kernel-devicetree)
 HOSTCC ?= gcc
 MODLIB ?= /lib/modules
 CC ?= $(CROSS_COMPILE)gcc
@@ -16,11 +17,19 @@ OBJCOPY ?= $(CROSS_COMPILE)objcopy
 
 V ?= 0
 
+OPENRM ?= 1
+ifeq ($(OPENRM), 1)
+NVIDIA_DISPLAY_DIR := unifiedgpudisp
+else
+NVIDIA_DISPLAY_DIR := nvdisplay
+endif
+
 ifneq ($(words $(subst :, ,$(MAKEFILE_DIR))), 1)
 $(error source directory cannot contain spaces or colons)
 endif
 
-.PHONY : help modules modules_install clean conftest nvidia-headers hwpm nvidia-oot nvgpu
+
+.PHONY : help modules modules_install clean conftest hwpm nvidia-oot nvgpu
 
 # help is default target!
 help:
@@ -35,7 +44,7 @@ help:
 modules: hwpm nvidia-oot nvgpu nvidia-display
 dtbs: nvidia-dtbs
 modules_install: hwpm nvidia-oot nvgpu nvidia-display-install
-clean: hwpm nvidia-oot nvgpu nvidia-display-clean nvidia-dtbs-clean
+clean: hwpm nvidia-oot nvgpu nvidia-display-clean nvidia-dtbs-clean conftest-clean
 
 $(NVIDIA_CONFTEST):
 	mkdir -p $@
@@ -89,9 +98,14 @@ nvidia-oot: conftest hwpm
 		srctree.nvidia-oot=$(MAKEFILE_DIR)/nvidia-oot \
 		srctree.hwpm=$(MAKEFILE_DIR)/hwpm \
 		srctree.nvconftest=$(NVIDIA_CONFTEST) \
+		kernel_name=${kernel_name} \
+		system_type=l4t \
 		KBUILD_EXTRA_SYMBOLS=$(MAKEFILE_DIR)/hwpm/drivers/tegra/hwpm/Module.symvers \
 		$(MAKECMDGOALS)
 
+ifeq ($(OPENRM), 1)
+nvgpu: ;
+else
 nvgpu: conftest nvidia-oot
 	if [ ! -d "$(MAKEFILE_DIR)/nvgpu" ] ; then \
 		echo "Directory nvgpu is not found, exiting.."; \
@@ -110,18 +124,18 @@ nvgpu: conftest nvidia-oot
 		srctree.nvconftest=$(NVIDIA_CONFTEST) \
 		KBUILD_EXTRA_SYMBOLS=$(MAKEFILE_DIR)/nvidia-oot/Module.symvers \
 		$(MAKECMDGOALS)
-
+endif
 
 define display-cmd
 	$(MAKE) ARCH=arm64 TARGET_ARCH=aarch64 \
-		-C $(MAKEFILE_DIR)/nvdisplay \
+		-C $(MAKEFILE_DIR)/$(NVIDIA_DISPLAY_DIR) \
 		NV_VERBOSE=$(V) \
 		KERNELRELEASE="" \
+		SYSSRCNVOOT=$(MAKEFILE_DIR)/nvidia-oot \
 		SYSSRC=$(KERNEL_SRC) \
 		SYSOUT=$(KBUILD_OUTPUT) \
 		OOTSRC=$(MAKEFILE_DIR)/nvidia-oot \
 		KBUILD_EXTRA_SYMBOLS=$(MAKEFILE_DIR)/nvidia-oot/Module.symvers \
-		SYSSRCHOST1X=$(MAKEFILE_DIR)/nvidia-oot/drivers/gpu/host1x/include \
 		CC="$(CC)" \
 		LD="$(LD)" \
 		AR="$(AR)" \
@@ -131,8 +145,8 @@ endef
 
 
 nvidia-display: nvidia-oot
-	@if [ ! -d "$(MAKEFILE_DIR)/nvdisplay" ] ; then \
-		echo "Directory nvdisplay is not found, exiting.."; \
+	@if [ ! -d "$(MAKEFILE_DIR)/$(NVIDIA_DISPLAY_DIR)" ] ; then \
+		echo "Directory $(NVIDIA_DISPLAY_DIR) is not found, exiting.."; \
 		false; \
 	fi
 	@echo   "================================================================================"
@@ -150,7 +164,8 @@ nvidia-display-install:
 	@echo   "================================================================================"
 	$(MAKE) -C $(KERNEL_PATH) \
 		KERNEL_MODLIB=$(MODLIB) \
-		M=$(MAKEFILE_DIR)/nvdisplay/kernel-open modules_install
+		INSTALL_MOD_DIR=updates/opensrc-disp \
+		M=$(MAKEFILE_DIR)/$(NVIDIA_DISPLAY_DIR)/kernel-open modules_install
 
 nvidia-display-clean:
 	@echo   "================================================================================"
@@ -159,7 +174,7 @@ nvidia-display-clean:
 	$(display-cmd) clean
 
 nvidia-dtbs:
-	@if [ ! -d "$(MAKEFILE_DIR)/kernel-devicetree" ] ; then \
+	@if [ ! -d "$(NVIDIA_DTS_BUILD_SCRIPTS)" ] ; then \
 		echo "Directory kernel-devicetree is not found, exiting.."; \
 		false; \
 	fi
@@ -169,10 +184,10 @@ nvidia-dtbs:
 	TEGRA_TOP=$(MAKEFILE_DIR) \
 	srctree=$(KERNEL_SRC) \
 	objtree=$(KBUILD_OUTPUT) \
-	oottree=$(MAKEFILE_DIR)/kernel-devicetree \
+	oottree=$(NVIDIA_DTS_BUILD_SCRIPTS) \
 	HOSTCC="$(HOSTCC)" \
-	$(MAKE) -f $(MAKEFILE_DIR)/kernel-devicetree/scripts/Makefile.build \
-		obj=$(MAKEFILE_DIR)/kernel-devicetree/generic-dts \
+	$(MAKE) -f $(NVIDIA_DTS_BUILD_SCRIPTS)/scripts/Makefile.build \
+		obj=$(NVIDIA_DTS_BUILD_SCRIPTS)/generic-dts \
 		dtbs
 	@echo   "================================================================================"
 	@echo   "DTBs compiled successfully."
@@ -182,5 +197,11 @@ nvidia-dtbs-clean:
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-dtbs ..."
 	@echo   "================================================================================"
-	rm -fr $(MAKEFILE_DIR)/kernel-devicetree/generic-dts/dtbs
+	rm -fr $(NVIDIA_DTS_BUILD_SCRIPTS)/generic-dts/dtbs
+
+conftest-clean:
+	@echo   "================================================================================"
+	@echo   "make $(MAKECMDGOALS) - conftest ..."
+	@echo   "================================================================================"
+	rm -fr $(NVIDIA_CONFTEST)
 
