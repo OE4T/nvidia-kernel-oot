@@ -25,7 +25,7 @@
 [submodule "hardware/nvidia/t264/nv-public"]
 	path = hardware/nvidia/t264/nv-public
 	url = https://github.com/OE4T/t264-public-dts.git
-	branch = l4t/l4t-r38.2.1
+	branch = patches-l4t-r38.2.1
 [submodule "unifiedgpudisp"]
 	path = unifiedgpudisp
 	url = https://github.com/OE4T/nv-unified-gpu-display-driver.git
