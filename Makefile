@@ -5,19 +5,17 @@ KERNEL_HEADERS ?= /lib/modules/$(shell uname -r)/build
 KERNEL_OUTPUT ?= ${KERNEL_HEADERS}
 
 MAKEFILE_DIR := $(abspath $(shell dirname $(lastword $(MAKEFILE_LIST))))
-NVIDIA_CONFTEST ?= $(MAKEFILE_DIR)/out/nvidia-conftest
-HOSTCC ?= gcc
-MODLIB ?= /lib/modules
-CC ?= $(CROSS_COMPILE)gcc
-CXX ?= $(CROSS_COMPILE)g++
-LD ?= $(CROSS_COMPILE)ld.bfd
-AR ?= $(CROSS_COMPILE)ar
-OBJCOPY ?= $(CROSS_COMPILE)objcopy
-
-V ?= 0
+NVIDIA_HEADERS ?= ${MAKEFILE_DIR}/out/nvidia-linux-header
+NVIDIA_CONFTEST ?= ${MAKEFILE_DIR}/out/nvidia-conftest
 
 ifneq ($(words $(subst :, ,$(MAKEFILE_DIR))), 1)
 $(error source directory cannot contain spaces or colons)
+endif
+
+NPROC ?= $(shell nproc)
+
+ifeq ("$(wildcard $(KERNEL_OUTPUT))","")
+$(error kernel headers/output directory "$(KERNEL_OUTPUT)" does not exist!)
 endif
 
 .PHONY : help modules modules_install clean conftest nvidia-headers hwpm nvidia-oot nvgpu
@@ -37,8 +35,6 @@ dtbs: nvidia-dtbs
 modules_install: hwpm nvidia-oot nvgpu nvidia-display-install
 clean: hwpm nvidia-oot nvgpu nvidia-display-clean nvidia-dtbs-clean
 
-$(NVIDIA_CONFTEST):
-	mkdir -p $@
 
 conftest:
 ifeq ($(MAKECMDGOALS), modules)
@@ -46,12 +42,12 @@ ifeq ($(MAKECMDGOALS), modules)
 	@echo   "make $(MAKECMDGOALS) - conftest ..."
 	@echo   "================================================================================"
 	mkdir -p $(NVIDIA_CONFTEST)/nvidia;
-	cp -av $(MAKEFILE_DIR)/nvidia-oot/scripts/conftest/* $(NVIDIA_CONFTEST)/nvidia/
-	$(MAKE) ARCH=arm64 \
+	cp -av $(MAKEFILE_DIR)/nvidia-oot/scripts/conftest/* $(NVIDIA_CONFTEST)/nvidia/;
+	$(MAKE) -j $(NPROC) ARCH=arm64 \
 		src=$(NVIDIA_CONFTEST)/nvidia obj=$(NVIDIA_CONFTEST)/nvidia \
-		CC="$(CC)" LD="$(LD)" \
-		NV_KERNEL_SOURCES=$(KERNEL_SRC) \
-		NV_KERNEL_OUTPUT=$(KBUILD_OUTPUT) \
+		CC=$(CROSS_COMPILE)gcc LD=$(CROSS_COMPILE)ld \
+		NV_KERNEL_SOURCES=$(KERNEL_HEADERS) \
+		NV_KERNEL_OUTPUT=$(KERNEL_OUTPUT) \
 		-f $(NVIDIA_CONFTEST)/nvidia/Makefile
 endif
 
@@ -63,10 +59,9 @@ hwpm: conftest
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - hwpm ..."
 	@echo   "================================================================================"
-	$(MAKE) ARCH=arm64 \
-		-C $(KERNEL_PATH) \
+	$(MAKE) -j $(NPROC) ARCH=arm64 \
+		-C $(KERNEL_OUTPUT) \
 		M=$(MAKEFILE_DIR)/hwpm/drivers/tegra/hwpm \
-		MODLIB=$(MODLIB) \
 		CONFIG_TEGRA_OOT_MODULE=m \
 		srctree.hwpm=$(MAKEFILE_DIR)/hwpm \
 		srctree.nvconftest=$(NVIDIA_CONFTEST) \
@@ -80,12 +75,10 @@ nvidia-oot: conftest hwpm
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-oot ..."
 	@echo   "================================================================================"
-	$(MAKE) ARCH=arm64 \
-		-C $(KERNEL_PATH) \
+	$(MAKE) -j $(NPROC) ARCH=arm64 \
+		-C $(KERNEL_OUTPUT) \
 		M=$(MAKEFILE_DIR)/nvidia-oot \
-		MODLIB=$(MODLIB) \
 		CONFIG_TEGRA_OOT_MODULE=m \
-		KCFLAGS="-Wno-error=address" \
 		srctree.nvidia-oot=$(MAKEFILE_DIR)/nvidia-oot \
 		srctree.hwpm=$(MAKEFILE_DIR)/hwpm \
 		srctree.nvconftest=$(NVIDIA_CONFTEST) \
@@ -100,10 +93,9 @@ nvgpu: conftest nvidia-oot
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvgpu ..."
 	@echo   "================================================================================"
-	$(MAKE) ARCH=arm64 \
-		-C $(KERNEL_PATH) \
+	$(MAKE) -j $(NPROC) ARCH=arm64 \
+		-C $(KERNEL_OUTPUT) \
 		M=$(MAKEFILE_DIR)/nvgpu/drivers/gpu/nvgpu \
-		MODLIB=$(MODLIB) \
 		CONFIG_TEGRA_OOT_MODULE=m \
 		srctree.nvidia=$(MAKEFILE_DIR)/nvidia-oot \
 		srctree.nvidia-oot=$(MAKEFILE_DIR)/nvidia-oot \
@@ -113,24 +105,37 @@ nvgpu: conftest nvidia-oot
 
 
 define display-cmd
-	$(MAKE) ARCH=arm64 TARGET_ARCH=aarch64 \
+	$(MAKE) -j $(NPROC) ARCH=arm64 TARGET_ARCH=aarch64 \
 		-C $(MAKEFILE_DIR)/nvdisplay \
-		NV_VERBOSE=$(V) \
+		LOCALVERSION=$(version) \
+		NV_VERBOSE=0 \
 		KERNELRELEASE="" \
-		SYSSRC=$(KERNEL_SRC) \
-		SYSOUT=$(KBUILD_OUTPUT) \
-		OOTSRC=$(MAKEFILE_DIR)/nvidia-oot \
-		KBUILD_EXTRA_SYMBOLS=$(MAKEFILE_DIR)/nvidia-oot/Module.symvers \
+		SYSSRC=$(NVIDIA_HEADERS) \
+		SYSOUT=$(NVIDIA_HEADERS) \
 		SYSSRCHOST1X=$(MAKEFILE_DIR)/nvidia-oot/drivers/gpu/host1x/include \
-		CC="$(CC)" \
-		LD="$(LD)" \
-		AR="$(AR)" \
-		CXX="$(CXX)" \
-		OBJCOPY="$(OBJCOPY)"
+		CC=$(CROSS_COMPILE)gcc \
+		LD=$(CROSS_COMPILE)ld.bfd \
+		AR=$(CROSS_COMPILE)ar \
+		CXX=$(CROSS_COMPILE)g++ \
+		OBJCOPY=$(CROSS_COMPILE)objcopy
 endef
 
 
-nvidia-display: nvidia-oot
+nvidia-headers: nvidia-oot
+	mkdir -p $(NVIDIA_HEADERS)
+	cp -LR $(KERNEL_HEADERS)/* $(NVIDIA_HEADERS)
+	if [ "$(KERNEL_HEADERS)" != "$(KERNEL_OUTPUT)" ] ; then \
+		cp -LR $(KERNEL_OUTPUT)/include/* $(NVIDIA_HEADERS)/include/ ; \
+		cp -LR $(KERNEL_OUTPUT)/arch/arm64/include/* $(NVIDIA_HEADERS)/arch/arm64/include/ ; \
+		cp -LR $(KERNEL_OUTPUT)/scripts/* $(NVIDIA_HEADERS)/scripts/ ; \
+		cp $(KERNEL_OUTPUT)/System.map $(NVIDIA_HEADERS)/ || true ; \
+	fi
+	cp -LR $(MAKEFILE_DIR)/nvidia-oot/include/* $(NVIDIA_HEADERS)/include/
+	cat $(KERNEL_OUTPUT)/Module.symvers $(MAKEFILE_DIR)/nvidia-oot/Module.symvers > \
+		$(NVIDIA_HEADERS)/Module.symvers
+
+
+nvidia-display: nvidia-headers
 	@if [ ! -d "$(MAKEFILE_DIR)/nvdisplay" ] ; then \
 		echo "Directory nvdisplay is not found, exiting.."; \
 		false; \
@@ -148,15 +153,17 @@ nvidia-display-install:
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-display ..."
 	@echo   "================================================================================"
-	$(MAKE) -C $(KERNEL_PATH) \
-		KERNEL_MODLIB=$(MODLIB) \
+	$(MAKE) -C $(NVIDIA_HEADERS) \
 		M=$(MAKEFILE_DIR)/nvdisplay/kernel-open modules_install
 
 nvidia-display-clean:
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-display ..."
 	@echo   "================================================================================"
-	$(display-cmd) clean
+	if [ -d $(NVIDIA_HEADERS) ]; then \
+		$(display-cmd) clean && \
+		rm -fr $(NVIDIA_HEADERS); \
+	fi
 
 nvidia-dtbs:
 	@if [ ! -d "$(MAKEFILE_DIR)/kernel-devicetree" ] ; then \
@@ -167,10 +174,10 @@ nvidia-dtbs:
 	@echo   "make nvidia-dtbs ..."
 	@echo   "================================================================================"
 	TEGRA_TOP=$(MAKEFILE_DIR) \
-	srctree=$(KERNEL_SRC) \
-	objtree=$(KBUILD_OUTPUT) \
+	srctree=$(KERNEL_HEADERS) \
+	objtree=$(KERNEL_OUTPUT) \
 	oottree=$(MAKEFILE_DIR)/kernel-devicetree \
-	HOSTCC="$(HOSTCC)" \
+	HOSTCC=gcc \
 	$(MAKE) -f $(MAKEFILE_DIR)/kernel-devicetree/scripts/Makefile.build \
 		obj=$(MAKEFILE_DIR)/kernel-devicetree/generic-dts \
 		dtbs
