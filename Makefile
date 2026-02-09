@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 
 KERNEL_HEADERS ?= /lib/modules/$(shell uname -r)/build
@@ -7,6 +7,7 @@ KERNEL_OUTPUT ?= ${KERNEL_HEADERS}
 MAKEFILE_DIR := $(abspath $(shell dirname $(lastword $(MAKEFILE_LIST))))
 NVIDIA_HEADERS ?= ${MAKEFILE_DIR}/out/nvidia-linux-header
 NVIDIA_CONFTEST ?= ${MAKEFILE_DIR}/out/nvidia-conftest
+NVIDIA_DTS_BUILD_SCRIPTS ?= $(realpath ${MAKEFILE_DIR}/kernel-devicetree)
 
 ifneq ($(words $(subst :, ,$(MAKEFILE_DIR))), 1)
 $(error source directory cannot contain spaces or colons)
@@ -153,7 +154,7 @@ nvidia-display-install:
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-display ..."
 	@echo   "================================================================================"
-	$(MAKE) -C $(NVIDIA_HEADERS) \
+	$(MAKE) -C $(NVIDIA_HEADERS) INSTALL_MOD_DIR=updates/opensrc-disp \
 		M=$(MAKEFILE_DIR)/nvdisplay/kernel-open modules_install
 
 nvidia-display-clean:
@@ -166,7 +167,7 @@ nvidia-display-clean:
 	fi
 
 nvidia-dtbs:
-	@if [ ! -d "$(MAKEFILE_DIR)/kernel-devicetree" ] ; then \
+	@if [ ! -d "$(NVIDIA_DTS_BUILD_SCRIPTS)" ] ; then \
 		echo "Directory kernel-devicetree is not found, exiting.."; \
 		false; \
 	fi
@@ -176,10 +177,10 @@ nvidia-dtbs:
 	TEGRA_TOP=$(MAKEFILE_DIR) \
 	srctree=$(KERNEL_HEADERS) \
 	objtree=$(KERNEL_OUTPUT) \
-	oottree=$(MAKEFILE_DIR)/kernel-devicetree \
+	oottree=$(NVIDIA_DTS_BUILD_SCRIPTS) \
 	HOSTCC=gcc \
-	$(MAKE) -f $(MAKEFILE_DIR)/kernel-devicetree/scripts/Makefile.build \
-		obj=$(MAKEFILE_DIR)/kernel-devicetree/generic-dts \
+	$(MAKE) -f $(NVIDIA_DTS_BUILD_SCRIPTS)/scripts/Makefile.build \
+		obj=$(NVIDIA_DTS_BUILD_SCRIPTS)/generic-dts \
 		dtbs
 	@echo   "================================================================================"
 	@echo   "DTBs compiled successfully."
@@ -189,5 +190,5 @@ nvidia-dtbs-clean:
 	@echo   "================================================================================"
 	@echo   "make $(MAKECMDGOALS) - nvidia-dtbs ..."
 	@echo   "================================================================================"
-	rm -fr $(MAKEFILE_DIR)/kernel-devicetree/generic-dts/dtbs
+	rm -fr $(NVIDIA_DTS_BUILD_SCRIPTS)/generic-dts/dtbs
 
